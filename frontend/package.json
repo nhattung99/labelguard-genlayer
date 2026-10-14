@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node ../scripts/check-no-float-money.js",
+    "prebuild": "node scripts/check-no-float-money.cjs",
     "build": "vite build",
     "preview": "vite preview",
     "test:money": "node src/__tests__/unit_conversion.test.js",
     "test:ui": "node src/__tests__/batch_poll.test.js",
     "test": "npm run test:money && npm run test:ui && npm run check:float",
-    "check:float": "node ../scripts/check-no-float-money.js"
+    "check:float": "node scripts/check-no-float-money.cjs"
   },
   "dependencies": {
     "genlayer-js": "^0.15.0",
