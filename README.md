@@ -8,6 +8,10 @@ There is no percentage tolerance on the money. There is no second amount. The wh
 
 > LabelGuard dies without GenLayer: no EVM smart contract can read an unstructured labeling batch and compare it with natural-language guidelines and gold answers, and no auditor is cheap enough to review each small job from an independent AI team. Only GenLayer's decentralized AI consensus can do this at near-zero cost.
 
+## Live App
+
+https://labelguard-genlayer.vercel.app
+
 ## Deployed Contract
 
 - **Network:** studionet only
