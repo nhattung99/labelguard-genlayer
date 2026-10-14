@@ -6,16 +6,16 @@ export function studioRpcUrl(origin) {
   return `${origin.replace(/\/$/, '')}/api/genlayer`;
 }
 
-export function formatWalletError(err, fallback = 'Giao dịch ví thất bại') {
+export function formatWalletError(err, fallback = 'Wallet request failed') {
   const raw = `${err?.shortMessage || ''} ${err?.details || ''} ${err?.message || ''}`.toLowerCase();
   if (raw.includes('user rejected') || raw.includes('user denied') || raw.includes('user cancel')) {
-    return 'MetaMask đã huỷ yêu cầu. Chuyển sang Genlayer Studio Network rồi bấm Xác nhận.';
+    return 'MetaMask cancelled the request. Switch to Genlayer Studio Network, then click Confirm.';
   }
   if (raw.includes('no address provided') || raw.includes('no account')) {
-    return 'Hãy kết nối ví trước, rồi thử lại.';
+    return 'Connect a wallet first, then try again.';
   }
   if (raw.includes('unrecognized chain') || raw.includes('chain disconnected') || raw.includes('4902')) {
-    return 'Hãy chấp nhận thêm Genlayer Studio Network trong MetaMask, rồi gửi lại giao dịch.';
+    return 'Approve adding Genlayer Studio Network in MetaMask, then send the transaction again.';
   }
   return err?.shortMessage || err?.message || fallback;
 }
@@ -195,10 +195,10 @@ export function formatDeadline(unixStr) {
 }
 
 export const FLOW_STEPS = [
-  { id: 'create', label: '1. Tạo lô' },
-  { id: 'submit', label: '2. Nộp bài' },
-  { id: 'ai', label: '3. AI chấm' },
-  { id: 'done', label: '4. Giải ngân' },
+  { id: 'create', label: '1. Create' },
+  { id: 'submit', label: '2. Submit' },
+  { id: 'ai', label: '3. AI check' },
+  { id: 'done', label: '4. Payout' },
 ];
 
 export function flowCurrentStep(status) {
@@ -211,14 +211,14 @@ export function flowCurrentStep(status) {
 
 export function statusLabel(status) {
   const map = {
-    AWAITING_SUBMISSION: 'Chờ nộp bài',
-    SUBMITTED: 'Đã nộp, chờ AI chấm',
-    REVISION_REQUESTED: 'Cần nộp lại',
-    RESOLVED_ACCEPTED: 'Đạt — đã trả người gán nhãn',
-    RESOLVED_REJECTED: 'Không đạt — đã hoàn người thuê',
-    DISPUTED: 'Chưa đủ tự tin — nộp lại',
-    PAYOUT_FAILED: 'Giải ngân lỗi',
-    EXPIRED_REFUNDED: 'Hết hạn — đã hoàn tiền',
+    AWAITING_SUBMISSION: 'Waiting for the submission',
+    SUBMITTED: 'Submitted, waiting for AI',
+    REVISION_REQUESTED: 'Revision needed',
+    RESOLVED_ACCEPTED: 'Accepted — paid the labeler',
+    RESOLVED_REJECTED: 'Rejected — refunded the requester',
+    DISPUTED: 'Not confident enough — submit again',
+    PAYOUT_FAILED: 'Payout failed',
+    EXPIRED_REFUNDED: 'Expired — refunded the requester',
   };
   return map[status] || status || '—';
 }
@@ -241,59 +241,59 @@ export function nextActionHint({ status, isRequester, isLabeler }) {
   const s = String(status || '');
   if (s === 'AWAITING_SUBMISSION' && isLabeler) {
     return {
-      title: 'Đọc kỹ phần đã khoá trước khi làm',
-      body: 'Hướng dẫn, đáp án chuẩn và tiêu chí bên dưới không đổi được. Làm xong thì dán link bài nộp.',
+      title: 'Read the locked materials before you start',
+      body: 'The guidelines, gold answers, and acceptance criteria below cannot be changed. When the work is done, paste the submission link.',
     };
   }
   if (s === 'AWAITING_SUBMISSION' && isRequester) {
     return {
-      title: 'Đang chờ người gán nhãn',
-      body: 'Gửi link lô việc này cho họ. Tiền công nằm trong contract đến khi có kết quả hoặc hết hạn.',
+      title: 'Waiting on the labeler',
+      body: 'Share this batch link. The fee stays in the contract until there is a result or the deadline passes.',
     };
   }
   if (s === 'SUBMITTED') {
     return {
-      title: 'Sẵn sàng chấm',
-      body: 'Bấm Yêu cầu AI chấm. Validator chỉ đồng thuận khi cùng ra ACCEPTED hoặc cùng ra REJECTED.',
+      title: 'Ready to check',
+      body: 'Click Request an AI check. Validators agree only when they return the same ACCEPTED or REJECTED result.',
     };
   }
   if (s === 'REVISION_REQUESTED' && isLabeler) {
     return {
-      title: 'Bạn còn 1 lần nộp lại',
-      body: 'Sửa bài cho khớp đáp án chuẩn và hướng dẫn, rồi nộp lại. Tiền công chưa bị đụng tới.',
+      title: 'You have 1 revision left',
+      body: 'Update the batch so it meets the gold answers and the guidelines, then submit again. The fee has not moved.',
     };
   }
   if (s === 'REVISION_REQUESTED') {
     return {
-      title: 'Người gán nhãn còn 1 lần nộp lại',
-      body: 'Tiền công vẫn nằm nguyên. Không huỷ được lô trước hạn.',
+      title: 'The labeler has 1 revision left',
+      body: 'The fee is still untouched. The batch cannot be cancelled before the deadline.',
     };
   }
   if (s === 'DISPUTED') {
     return {
-      title: 'AI chưa đủ tự tin',
-      body: 'Người gán nhãn có thể nộp lại link rõ hơn. Tiền công vẫn nằm trong escrow.',
+      title: 'The AI is not confident enough',
+      body: 'The labeler can submit a clearer public link. The fee stays in escrow.',
     };
   }
   if (s === 'PAYOUT_FAILED') {
     return {
-      title: 'Giải ngân chưa xong',
-      body: 'Phán quyết đã được lưu. Bấm Thử lại để chuyển đúng số tiền công đã khoá. AI không chạy lại.',
+      title: 'The payout did not finish',
+      body: 'The verdict is already stored. Click Try again to send the same locked fee. AI will not run again.',
     };
   }
   if (s === 'RESOLVED_ACCEPTED') {
-    return { title: 'Đã trả người gán nhãn', body: 'Bài nộp đạt tiêu chí đã khoá.' };
+    return { title: 'Paid the labeler', body: 'The submission met the locked acceptance criteria.' };
   }
   if (s === 'RESOLVED_REJECTED') {
     return {
-      title: 'Đã hoàn người thuê',
-      body: 'Bài không đạt sau lần nộp lại, hoặc đã quá hạn. Người thuê có thể đã thấy nội dung bài nộp.',
+      title: 'Refunded the requester',
+      body: 'The submission missed the criteria after the revision, or the deadline had passed. The requester may already have seen the submission.',
     };
   }
   if (s === 'EXPIRED_REFUNDED') {
-    return { title: 'Đã hoàn vì hết hạn', body: 'Không có bài nào được chấp nhận trước hạn.' };
+    return { title: 'Refunded because the deadline passed', body: 'No submission was accepted before the deadline.' };
   }
-  return { title: 'Theo dõi lô việc', body: 'Kết nối ví studionet để tạo lô hoặc nộp bài.' };
+  return { title: 'Follow this batch', body: 'Connect a studionet wallet to create a batch or submit work.' };
 }
 
 export function asUrlList(value) {

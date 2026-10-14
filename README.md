@@ -1,121 +1,121 @@
-# LabelGuard — Escrow lô gán nhãn trung lập trên GenLayer
+# LabelGuard — Neutral labeling escrow on GenLayer
 
-Các nhóm AI nhỏ thuê người gán nhãn (phân loại ảnh, chấm câu trả lời, dịch) nhưng không có trọng tài đủ rẻ cho từng lô nhỏ. Người gán nhãn thì lo làm xong bị từ chối vô lý hoặc không được trả. LabelGuard giữ **một khoản GEN cố định** trong **một Intelligent Contract**. Người thuê khoá hướng dẫn, đáp án chuẩn và tiêu chí ngay lúc tạo. AI của GenLayer trả về đúng một trong hai kết quả:
+Small AI teams hire people to label data (image classes, answer scores, translations) and then have no cheap referee for each small batch. Labelers worry the requester will reject finished work without paying. LabelGuard holds **one fixed GEN fee** in **one Intelligent Contract**. The requester locks the guidelines, the gold-standard answers, and the acceptance criteria at creation. GenLayer AI returns exactly one of two verdicts:
 
 `ACCEPTED` · `REJECTED`
 
-Không có dung sai phần trăm trên tiền. Không có số tiền thứ hai. Toàn bộ `payment_amount` được trả cho người gán nhãn, hoặc hoàn cho người thuê.
+There is no percentage tolerance on the money. There is no second amount. The whole `payment_amount` goes to the labeler, or back to the requester.
 
-> LabelGuard chết nếu không có GenLayer: không có smart contract EVM nào đọc hiểu được một lô dữ liệu gán nhãn phi cấu trúc để đối chiếu với hướng dẫn và đáp án chuẩn bằng ngôn ngữ tự nhiên, và không có bên kiểm định nào đủ rẻ để duyệt từng lô việc nhỏ của các nhóm AI độc lập — chỉ có đồng thuận AI phi tập trung của GenLayer mới làm được với chi phí gần bằng 0.
+> LabelGuard dies without GenLayer: no EVM smart contract can read an unstructured labeling batch and compare it with natural-language guidelines and gold answers, and no auditor is cheap enough to review each small job from an independent AI team. Only GenLayer's decentralized AI consensus can do this at near-zero cost.
 
-## Địa chỉ contract
+## Deployed Contract
 
-- **Mạng:** studionet, không đổi sang chain khác
-- **Địa chỉ:** chưa có — điền sau khi deploy tay và receipt ghi `Result: SUCCESS`
-- **App:** chạy được khi chưa có địa chỉ. Banner vàng hiện rõ, bấm tạo lô sẽ báo lỗi, trang không trắng.
+- **Network:** studionet only
+- **Address:** `0xe5280FbC862E8d6452277DBC78595A5052D86cB9`
+- **Explorer:** https://genlayer-explorer.vercel.app/address/0xe5280FbC862E8d6452277DBC78595A5052D86cB9
 
-## Vì sao verdict nhị phân
+## Why the verdict is binary
 
-JobVerdict bị steward từ chối vì consensus dùng dung sai %: hai validator "đồng thuận" nhưng chốt hai số tiền khác nhau. LabelGuard chỉ có hai kết quả rời rạc. Validator so **tuyệt đối**:
+JobVerdict was rejected because a percent tolerance let two validators "agree" while locking two different amounts. LabelGuard has only two discrete outcomes. Validators compare with absolute equality:
 
-- chuỗi verdict giống hệt nhau (`ACCEPTED` hoặc `REJECTED`, kể cả chuỗi rỗng khi không parse được)
-- hai confidence nằm cùng một phía của ngưỡng 60 (`>= 60` thì giải ngân, `< 60` thì `DISPUTED`)
+- the verdict string is identical (`ACCEPTED` or `REJECTED`, including an empty string when the response cannot be parsed)
+- both confidences sit on the same side of 60 (`>= 60` settles, `< 60` is `DISPUTED`)
 
-Không có tolerance số. Confidence không nhân với tiền công. "90%" chỉ nằm trong câu `acceptance_criteria` để model áp bên trong phán đoán. Output cuối cùng vẫn là ACCEPTED hoặc REJECTED, và số GEN chuyển đi luôn là `payment_amount` đã khoá.
+There is no numeric tolerance. Confidence never scales the fee. A figure such as "90%" lives only inside the `acceptance_criteria` sentence, which the model applies inside the judgment. The final output is still ACCEPTED or REJECTED, and the GEN that moves is always the locked `payment_amount`.
 
-Lần `REJECTED` đầu, nếu còn hạn và `revisions_used == 0`, trạng thái thành `REVISION_REQUESTED`. Tiền không chuyển. `revisions_used` thành 1. `REJECTED` sau lần nộp lại, hoặc `REJECTED` khi đã quá hạn, hoàn toàn bộ cho người thuê.
+The first `REJECTED`, while the deadline is still open and `revisions_used == 0`, moves the batch to `REVISION_REQUESTED`. The fee does not move. `revisions_used` becomes 1. A later `REJECTED`, or a `REJECTED` after the deadline, refunds the requester in full.
 
-## Vì sao một contract
+## Why one contract
 
-Người thuê gửi GEN thẳng vào contract lúc `create_batch`. Giải ngân dùng `gl.get_contract_at(recipient).emit_transfer(value=u256(payment_amount))`. Không có contract thứ hai, không forward value qua lời gọi chéo.
+The requester sends GEN into this contract on `create_batch`. Payouts use `gl.get_contract_at(recipient).emit_transfer(value=u256(payment_amount))`. There is no second contract and no value-forward hop.
 
-## Luồng resolve
+## Resolution flow
 
-1. **Tạo** — người thuê đặt địa chỉ labeler (khác mình), mô tả, ít nhất 1 link hướng dẫn, ít nhất 1 link đáp án chuẩn, tiêu chí, hạn nộp, và gửi kèm `payment_amount` GEN > 0.
-2. Hướng dẫn, đáp án chuẩn và tiêu chí được ghi một lần. Contract **không có hàm nào sửa** các field này.
-3. **Nộp** — chỉ labeler, chỉ khi status là `AWAITING_SUBMISSION`, `REVISION_REQUESTED` hoặc `DISPUTED`, và chỉ trước hạn. Ít nhất 1 link bài nộp dạng `http://` hoặc `https://`. Status thành `SUBMITTED`.
-4. **Chấm** — ai cũng có thể gọi `resolve_batch` khi status là `SUBMITTED`. `gl.vm.run_nondet` đọc từng URL và xin JSON `{verdict, confidence, reason}`.
-5. `confidence < 60`, verdict rỗng, hoặc JSON hỏng → `DISPUTED`. Tiền nằm yên. Labeler được nộp lại.
-6. Nếu một URL hướng dẫn, đáp án chuẩn hoặc bài nộp không đọc được, contract không hỏi model và không trả tiền. Status thành `DISPUTED` với lý do `Failed to fetch ...`. Revert cứng sẽ giữ status `SUBMITTED`, mà `submit_batch` không được thay link khi đang `SUBMITTED`.
-7. `REJECTED` khi `revisions_used == 0` và `now <= submission_deadline` → `REVISION_REQUESTED`. Tiền không đổi.
-8. Các trường hợp còn lại gọi `_execute_settlement`: labeler nhận đủ nếu `ACCEPTED` (`RESOLVED_ACCEPTED`), requester nhận lại đủ nếu `REJECTED` (`RESOLVED_REJECTED`).
-9. Transfer lỗi → `PAYOUT_FAILED`, giữ nguyên verdict. `retry_resolution` (requester hoặc labeler) trả lại đúng người đó và **không** chạy lại AI. Hoàn hạn mà transfer lỗi thì verdict vẫn rỗng; retry trả requester và kết thúc `EXPIRED_REFUNDED`.
-10. Hết hạn mà status vẫn là `AWAITING_SUBMISSION`, `REVISION_REQUESTED` hoặc `DISPUTED`: requester gọi `claim_expired_refund`. Không cần AI. Không có hàm huỷ trước hạn.
+1. **Create** — the requester sets a labeler address (different from their own), a description, at least one guideline URL, at least one gold-standard URL, the acceptance criteria, a deadline, and attaches `payment_amount` GEN greater than 0.
+2. Guidelines, gold answers, and the acceptance criteria are stored once. This contract has **no method that can change them**.
+3. **Submit** — only the labeler, and only while status is `AWAITING_SUBMISSION`, `REVISION_REQUESTED`, or `DISPUTED`, and only before the deadline. At least one submission URL starting with `http://` or `https://`. Status becomes `SUBMITTED`.
+4. **Resolve** — anyone can call `resolve_batch` while status is `SUBMITTED`. `gl.vm.run_nondet` renders each URL and asks for JSON `{verdict, confidence, reason}`.
+5. `confidence < 60`, an empty verdict, or unparseable JSON becomes `DISPUTED`. The fee stays put. The labeler may submit again.
+6. If a guideline, gold-standard, or submission URL cannot be read, the contract does not ask the model and does not pay anyone. Status becomes `DISPUTED` with reason `Failed to fetch ...`. A hard revert would leave status `SUBMITTED`, and `submit_batch` cannot replace URLs in that status.
+7. `REJECTED` with `revisions_used == 0` and `now <= submission_deadline` becomes `REVISION_REQUESTED`. The fee stays put.
+8. Otherwise `_execute_settlement` pays the full fee: the labeler on `ACCEPTED` (`RESOLVED_ACCEPTED`), the requester on `REJECTED` (`RESOLVED_REJECTED`).
+9. A failed transfer sets `PAYOUT_FAILED` and keeps the verdict. `retry_resolution` (requester or labeler) pays the same party again and does not rerun AI. An expired refund that failed has an empty verdict; retry pays the requester and finishes as `EXPIRED_REFUNDED`.
+10. If the deadline passes while status is still `AWAITING_SUBMISSION`, `REVISION_REQUESTED`, or `DISPUTED`, the requester calls `claim_expired_refund`. No AI. There is no cancel before the deadline.
 
-Status được ghi sang trạng thái thành công **trước** `emit_transfer`, để một lần resolve lồng nhau không còn thấy `SUBMITTED`.
+Status is written to the success value before `emit_transfer`, so a re-entrant resolve no longer sees `SUBMITTED`.
 
-## Bốn giới hạn trung thực
+## Honest limits
 
-1. Lĩnh vực này **không có nguồn thứ ba độc lập** để xác minh chất lượng gán nhãn. Baseline duy nhất là hướng dẫn + đáp án chuẩn do requester đặt. Vì vậy cơ chế công bằng đến từ việc **khoá bất biến các thứ này lúc tạo lô**, không phải từ nguồn xác minh ngoài. AI chỉ đánh giá bài nộp có nhất quán với baseline đó hay không, không đánh giá "đúng sai khách quan tuyệt đối".
-2. Rủi ro requester đặt đáp án chuẩn bất công vẫn tồn tại; labeler phải đọc kỹ trước khi nhận việc. UI phải hiển thị nổi bật hướng dẫn, đáp án chuẩn và tiêu chí cho labeler xem trước.
-3. Khi `REJECTED`, requester được hoàn tiền nhưng có thể đã thấy nội dung lô bài nộp. Đây là hạn chế thương mại ngoài phạm vi contract, ghi rõ trong README.
-4. `gl.nondet.web.render` chỉ đọc được link công khai dạng văn bản (Google Sheet published-to-web, GitHub gist/raw, trang văn bản). File riêng tư hoặc cần đăng nhập sẽ lỗi fetch. UI phải nhắc rõ.
+1. This field has **no independent third-party source** that can verify labeling quality. The only baseline is the guidelines plus the gold-standard answers set by the requester. Fairness comes from **locking those materials when the batch is created**, not from an outside verifier. The AI judges whether the submission is consistent with that baseline. It does not judge absolute objective truth.
+2. A requester can still set an unfair gold standard. The labeler must read it carefully before accepting the job. The UI shows the guidelines, gold answers, and acceptance criteria prominently before the labeler starts.
+3. On `REJECTED`, the requester is refunded but may already have seen the submitted batch. That is a commercial limit outside the contract.
+4. `gl.nondet.web.render` can only read public text links (a Google Sheet published to the web, a GitHub gist or raw file, or a text page). Private files or pages that require a login fail to fetch. The UI says this clearly.
 
-## API đã dùng
+## Verified APIs
 
-| Việc | API | Không dùng |
+| Need | API used | Do not use |
 |---|---|---|
-| Người gọi | `gl.message.sender_address` | `gl.message.sender` |
-| Trả GEN | `gl.get_contract_at(addr).emit_transfer(value=u256(amount))` | `gl.transfer(...)` |
-| Nhận GEN | `@gl.public.write.payable` + `gl.message.value` trên `create_batch` | `@gl.public.write` trần khi gửi kèm GEN (Studio hiện tại báo `called non-payable method`, `value` về 0) |
-| Thời gian | `gl.message.datetime` parse bằng `datetime.fromisoformat` trong `_current_unix_timestamp` | `gl.block.timestamp` |
-| TreeMap | `in` và duyệt theo `batch_counter`; `.get(key, default)` có trong SDK | — |
+| Caller | `gl.message.sender_address` | `gl.message.sender` |
+| Pay GEN | `gl.get_contract_at(addr).emit_transfer(value=u256(amount))` | `gl.transfer(...)` |
+| Receive GEN | `@gl.public.write.payable` + `gl.message.value` on `create_batch` | plain `@gl.public.write` when attaching GEN (current Studio raises `called non-payable method` and leaves `value` at 0) |
+| Timestamp | `gl.message.datetime` parsed with `datetime.fromisoformat` via `_current_unix_timestamp` | `gl.block.timestamp` |
+| TreeMap | `in` plus a walk of `batch_counter`; `.get(key, default)` exists in the SDK | — |
 
-Header lấy từ template Studio và hash đang dùng ở các contract cùng workspace (SponsorCheck, AuditBounty, CargoVerdict):
+Header copied from the current Studio template:
 
 ```python
 # v0.2.16
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 ```
 
-Ghi chú cũ rằng `@gl.public.write.payable` "không tồn tại" không còn đúng với hash này. AuthentiCheck, SponsorCheck và AuditBounty đều deploy bằng hash đó và đánh dấu method nhận value là `.payable`. Chỉ `create_batch` là payable. Mọi write khác là `@gl.public.write`.
+An older note that `@gl.public.write.payable` "does not exist" is wrong for this Studio hash. AuthentiCheck, SponsorCheck, and AuditBounty all deploy with the same hash and mark the value-receiving method `.payable`. Only `create_batch` is payable. Every other write is `@gl.public.write`.
 
-### Write
+### Write methods
 
-- `create_batch(labeler, task_description, guideline_urls, gold_standard_urls, acceptance_criteria, submission_deadline) -> batch_id` — gửi kèm GEN `> 0`
-- `submit_batch(batch_id, submission_urls)` — chỉ labeler
-- `resolve_batch(batch_id)` — AI, chỉ từ `SUBMITTED`
-- `claim_expired_refund(batch_id)` — chỉ requester, đã quá hạn, chưa có bài được nhận hoặc đang chờ chấm
-- `retry_resolution(batch_id)` — requester hoặc labeler, chỉ `PAYOUT_FAILED`
+- `create_batch(labeler, task_description, guideline_urls, gold_standard_urls, acceptance_criteria, submission_deadline) -> batch_id` — attach GEN `> 0`
+- `submit_batch(batch_id, submission_urls)` — labeler only
+- `resolve_batch(batch_id)` — AI, only from `SUBMITTED`
+- `claim_expired_refund(batch_id)` — requester only, after the deadline, while nothing has been accepted or is waiting on review
+- `retry_resolution(batch_id)` — requester or labeler, only `PAYOUT_FAILED`
 
-### View
+### View methods
 
-View trả text JSON, trừ count và owner:
+Views return JSON text except the count and the owner:
 
 - `get_batch(batch_id) -> str`
 - `list_batches() -> str`
 - `get_batch_count() -> int`
 - `get_owner() -> str`
 
-`payment_amount` và `submission_deadline` là chuỗi số nguyên thập phân, không phải số JSON, để trình duyệt không làm tròn.
+`payment_amount` and `submission_deadline` are decimal integer strings, never JSON numbers, so the browser does not round them.
 
-## Bảng tiền — một field duy nhất
+## Money handling — one field only
 
-`payment_amount` là field tiền duy nhất. Đơn vị là wei (10^18 đơn vị cơ sở cho 1 GEN). Không chỗ nào trong contract hay frontend nhân field này với một phần trăm.
+`payment_amount` is the only money field. It is the full batch fee in wei (10^18 base units per GEN). Nothing in the contract or the frontend multiplies it by a percent.
 
-| Bước | Nơi | Việc xảy ra |
+| Step | Where | What happens |
 |---|---|---|
-| WRITE | `frontend/src/App.jsx`, form tạo lô | Chip hoặc chuỗi GEN gõ tay → `parseGenToWei` → `writeContract({ value })` |
-| WRITE | `create_batch` | `payment = bigint(gl.message.value)` lưu vào `Batch.payment_amount` |
-| WRITE | `_execute_settlement` | `emit_transfer(value=u256(payment_amount))` cho labeler nếu `ACCEPTED`, cho requester nếu `REJECTED` |
-| WRITE | `claim_expired_refund` và nhánh verdict rỗng của `retry_resolution` | đúng `payment_amount` hoàn cho requester |
-| READ | `get_batch` / `list_batches` | `str(int(payment_amount))` trong JSON |
-| READ | `frontend/src/App.jsx` | `readWei` (chỉ chuỗi chữ số hoặc bigint) → `formatWeiToGen` |
+| WRITE | `frontend/src/App.jsx` create form | Chip or typed GEN string → `parseGenToWei` → `writeContract({ value })` |
+| WRITE | `create_batch` | `payment = bigint(gl.message.value)` stored on `Batch.payment_amount` |
+| WRITE | `_execute_settlement` | `emit_transfer(value=u256(payment_amount))` to the labeler on `ACCEPTED`, or to the requester on `REJECTED` |
+| WRITE | `claim_expired_refund` and the empty-verdict branch of `retry_resolution` | the same full `payment_amount` back to the requester |
+| READ | `get_batch` / `list_batches` | `str(int(payment_amount))` inside JSON |
+| READ | `frontend/src/App.jsx` | `readWei` (digit string or bigint only) → `formatWeiToGen` |
 
-`parseGenToWei` và `formatWeiToGen` tách chuỗi rồi dùng `BigInt`. Chúng không gọi `parseFloat`, `Math.round`, `Math.floor`, hay `Math.ceil`. `scripts/check-no-float-money.js` quét `frontend/src/**/*.{js,jsx}` và làm fail build nếu các lời gọi đó đứng gần `payment`, `amount`, `payout`, `refund`, `balance`, `wei`, hoặc `gen`. Script `prebuild` của frontend chạy kiểm tra này.
+`parseGenToWei` and `formatWeiToGen` are string splits plus `BigInt`. They do not call `parseFloat`, `Math.round`, `Math.floor`, or `Math.ceil`. `scripts/check-no-float-money.js` scans `frontend/src/**/*.{js,jsx}` and fails the build if those calls sit near `payment`, `amount`, `payout`, `refund`, `balance`, `wei`, or `gen`. The frontend `prebuild` script runs it.
 
-Chip `1 GEN` chỉ là nhãn. Giá trị rời trình duyệt là số nguyên wei từ `parseGenToWei`.
+Display chips such as `1 GEN` are labels. The value that leaves the browser is the wei integer from `parseGenToWei`.
 
-## Deploy trên studionet (làm tay)
+## Deploy on studionet (manual)
 
-Làm trong GenLayer Studio. Không đổi app sang testnet hay chain khác.
+Do this in GenLayer Studio. Do not switch the app to another chain.
 
-1. Mở [GenLayer Studio](https://studio.genlayer.com) trên **studionet**.
-2. Tạo contract và dán nguyên `contracts/label_guard.py`, kể cả hai dòng header.
-3. Deploy. Đợi receipt ghi **Result: SUCCESS**.
-4. Gửi lại địa chỉ contract. Bước sau sẽ ghi `frontend/.env` thành `VITE_CONTRACT_ADDRESS=0x...`, build, push GitHub và deploy Vercel.
+1. Open [GenLayer Studio](https://studio.genlayer.com) on **studionet**.
+2. Create a contract and paste `contracts/label_guard.py` unchanged, including the two header lines.
+3. Deploy. Wait until the receipt says **Result: SUCCESS**.
+4. The deployed address is recorded under **Deployed Contract** above.
 
-Xem local khi chưa có địa chỉ:
+Local preview:
 
 ```bash
 cd frontend
@@ -123,7 +123,7 @@ npm install
 npm run dev
 ```
 
-Trang phải hiện banner chưa có địa chỉ và banner miễn phí. Tạo lô khi chưa có địa chỉ hiện lỗi, không trắng trang.
+Without `VITE_CONTRACT_ADDRESS`, the page shows the missing-address banner and the free-to-use banner. Creating a batch shows an error instead of a blank page.
 
 ## Tests
 
@@ -133,10 +133,10 @@ python -m pytest tests/test_label_guard.py -q
 cd frontend && npm test
 ```
 
-Đã phủ: ACCEPTED trả labeler; REJECTED lần đầu thành `REVISION_REQUESTED` và tiền nguyên vẹn rồi nộp lại ACCEPTED; REJECTED sau một lần nộp lại hoàn requester; REJECTED khi đã quá hạn hoàn ngay, không qua revision; hết hạn không có bài thì requester hoàn; requester không huỷ được trước hạn; nộp trễ bị chặn; confidence dưới 60 thành DISPUTED rồi nộp lại và chấm lại; web fail và JSON hỏng thành DISPUTED, không trả tiền; thiếu URL hoặc tiêu chí hoặc cùng một địa chỉ bị chặn lúc tạo; baseline không có hàm sửa và không đổi sau khi nộp; double-submit và double-resolve bị chặn; `emit_transfer` bị mock ném lỗi ở cả ba nhánh (ACCEPTED, REJECTED cuối, hoàn hạn) thành `PAYOUT_FAILED`, rồi `retry_resolution` trả đúng người nhận.
+Covered paths: accepted payout to the labeler, first rejection with the fee untouched then an accepted resubmit, rejection after the one revision refunds the requester, rejection after the deadline skips revision, an expired batch with no submission refunds the requester, a late submit is blocked, confidence below 60 disputes and a resubmit can resolve, web fetch failure and broken JSON dispute without paying, missing URLs or criteria or the same party are blocked, the baseline has no update method and does not change after submit, double submit and double resolve are blocked, and a forced `emit_transfer` failure on all three payout branches (accepted, final rejection, expired refund) is followed by `retry_resolution` to the correct recipient.
 
 ## Frontend
 
-Chip loại việc: Phân loại ảnh, Phân tích cảm xúc văn bản, Chấm điểm câu trả lời, Dịch thuật, Khác. Dropdown 80% / 90% / 95% tự sinh câu tiêu chí, người dùng không gõ tiêu chí. Chip tiền công. Dropdown hạn 24 giờ / 3 ngày / 7 ngày / 14 ngày. Mỗi ô link có nút dán. Bước tạo và bước nộp đều hiện banner link công khai. Màn chi tiết khoá nổi bật hướng dẫn, đáp án chuẩn, tiêu chí, tiền công và hạn, kèm dòng "Các nội dung này đã bị khoá và không thể thay đổi sau khi lô việc được tạo". `REVISION_REQUESTED` nói rõ còn 1 lần nộp lại. `DISPUTED` có form nộp lại. `PAYOUT_FAILED` có nút **Thử lại**. Banner dính: miễn phí, chỉ tốn gas GenLayer.
+Task type is a chip: Image classification, Text sentiment, Answer scoring, Translation, or Other. A dropdown of 80% / 90% / 95% writes the acceptance sentence. The user does not type the criteria. Fee chips. Deadline dropdown: 24 hours, 3 days, 7 days, 14 days. Each link row has a paste button. Create and submit both show the public-link banner. The detail view highlights the locked guidelines, gold answers, criteria, fee, and deadline, with the line "These materials are locked and cannot be changed after the batch is created." `REVISION_REQUESTED` says the labeler has one revision left. `DISPUTED` can resubmit. `PAYOUT_FAILED` has **Try again**. The sticky banner states that the only cost is GenLayer gas.
 
-Ví luôn ở `chains.studionet`. Lệnh đọc đi qua `/api/genlayer`, Vite và Vercel proxy tới `https://studio.genlayer.com/api`.
+Wallet traffic stays on `chains.studionet`. Reads go through `/api/genlayer`, which Vercel and the Vite dev server proxy to `https://studio.genlayer.com/api`.

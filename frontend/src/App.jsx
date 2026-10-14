@@ -120,11 +120,11 @@ const UrlFields = ({ urls, setUrls, placeholder, onError }) => (
               next[index] = await pasteClipboard();
               setUrls(next);
             } catch {
-              onError('Không đọc được clipboard. Hãy dán thủ công.');
+              onError('Could not read the clipboard. Paste the text manually.');
             }
           }}
         >
-          <ClipboardPaste size={14} /> Dán
+          <ClipboardPaste size={14} /> Paste
         </button>
       </div>
     ))}
@@ -162,17 +162,17 @@ export default function App() {
 
   const requireReady = () => {
     if (!hasContractAddress) {
-      throw new Error('Chưa có địa chỉ contract. Deploy trên studionet, xác nhận Result: SUCCESS, rồi đặt VITE_CONTRACT_ADDRESS.');
+      throw new Error('No contract address is configured. Deploy on studionet, then set VITE_CONTRACT_ADDRESS.');
     }
     if (!account) {
-      throw new Error('Hãy kết nối ví trước.');
+      throw new Error('Connect a wallet first.');
     }
   };
 
   const connectWallet = async () => {
     try {
       if (!window.ethereum) {
-        setErrorMessage('Cần MetaMask để dùng LabelGuard trên studionet.');
+        setErrorMessage('MetaMask is required to use LabelGuard on studionet.');
         return;
       }
       setErrorMessage(null);
@@ -185,7 +185,7 @@ export default function App() {
       }
       setAccount(addr);
     } catch (err) {
-      setErrorMessage(formatWalletError(err, 'Không kết nối được ví'));
+      setErrorMessage(formatWalletError(err, 'Could not connect the wallet'));
     }
   };
 
@@ -221,12 +221,12 @@ export default function App() {
       const loaded = await loadBatches(client, account);
       setRows(loaded.rows);
       if (!silent && !loaded.rows.length && loaded.listError) {
-        setErrorMessage(loaded.listError.message || 'Không tải được danh sách lô');
+        setErrorMessage(loaded.listError.message || 'Could not load batches');
       }
       return loaded;
     } catch (err) {
       console.warn('list_batches failed:', err);
-      if (!silent) setErrorMessage(err?.message || 'Không tải được danh sách lô');
+      if (!silent) setErrorMessage(err?.message || 'Could not load batches');
       return { rows: [], count: 0 };
     } finally {
       if (!silent) setLoading(false);
@@ -294,9 +294,9 @@ export default function App() {
         const status = String(settled?.status || '');
         if (!status || status === (fromStatus || 'SUBMITTED')) {
           const explorer = txExplorerUrl(hash);
-          const stuck = `Chưa có phán quyết mới. Hãy tải lại sau vài phút. Link phải là trang văn bản công khai. Explorer: ${explorer}`;
+          const stuck = `No new verdict yet. Refresh in a few minutes. Use a public text link. Explorer: ${explorer}`;
           if (receiptLooksFailed(receipt)) {
-            throw new Error(`GenVM đã hoàn tác lượt chấm này. ${stuck}`);
+            throw new Error(`GenVM rolled this check back. ${stuck}`);
           }
           setErrorMessage(stuck);
         }
@@ -322,7 +322,7 @@ export default function App() {
       }
       return hash;
     } catch (err) {
-      setErrorMessage(formatWalletError(err, 'Giao dịch thất bại'));
+      setErrorMessage(formatWalletError(err, 'Transaction failed'));
       return null;
     } finally {
       setLoading(false);
@@ -338,18 +338,18 @@ export default function App() {
   const onCreate = async (event) => {
     event.preventDefault();
     try {
-      if (!description.trim()) throw new Error('Hãy mô tả ngắn công việc.');
+      if (!description.trim()) throw new Error('Describe the labeling job.');
       if (!/^0x[0-9a-fA-F]{40}$/.test(labelerAddr.trim())) {
-        throw new Error('Địa chỉ người gán nhãn phải là 0x và 40 ký tự hex.');
+        throw new Error('The labeler address must be 0x followed by 40 hex characters.');
       }
       if (sameAddress(labelerAddr.trim(), account)) {
-        throw new Error('Người thuê và người gán nhãn phải là hai ví khác nhau.');
+        throw new Error('The requester and the labeler must use different wallets.');
       }
-      const guideError = urlProblem(guidelineUrls, 1, 'hướng dẫn');
+      const guideError = urlProblem(guidelineUrls, 1, 'guideline');
       if (guideError) throw new Error(guideError);
-      const goldError = urlProblem(goldUrls, 1, 'đáp án chuẩn');
+      const goldError = urlProblem(goldUrls, 1, 'gold-standard');
       if (goldError) throw new Error(goldError);
-      if (paymentWei <= 0n) throw new Error('Tiền công phải lớn hơn 0.');
+      if (paymentWei <= 0n) throw new Error('The fee must be greater than 0.');
       const preset = DEADLINE_PRESETS.find((item) => item.id === deadlineId) || DEADLINE_PRESETS[2];
       const deadline = deadlineUnixFromPreset(preset.seconds);
       await runWrite(
@@ -365,21 +365,21 @@ export default function App() {
         paymentWei
       );
     } catch (err) {
-      setErrorMessage(err?.message || 'Không tạo được lô việc');
+      setErrorMessage(err?.message || 'Could not create the batch');
     }
   };
 
   const onSubmit = async (event) => {
     event.preventDefault();
     try {
-      const problem = urlProblem(submissionUrls, 1, 'bài nộp');
+      const problem = urlProblem(submissionUrls, 1, 'submission');
       if (problem) throw new Error(problem);
       await runWrite('submit_batch', [
         String(activeId),
         submissionUrls.map((item) => item.trim()).filter(Boolean),
       ]);
     } catch (err) {
-      setErrorMessage(err?.message || 'Không nộp được bài');
+      setErrorMessage(err?.message || 'Could not submit the batch');
     }
   };
 
@@ -389,7 +389,7 @@ export default function App() {
       setCopied(key);
       setTimeout(() => setCopied(''), 1600);
     } catch {
-      setErrorMessage('Không đọc được clipboard. Hãy dán thủ công.');
+      setErrorMessage('Could not read the clipboard. Paste the text manually.');
     }
   };
 
@@ -426,21 +426,21 @@ export default function App() {
           <div className="brand-mark"><Tags size={20} /></div>
           <div>
             <h1>LabelGuard</h1>
-            <p>Escrow gán nhãn · studionet</p>
+            <p>Labeling escrow · studionet</p>
           </div>
         </div>
         <div className="header-right">
           <div className="network"><span className="dot" /> {networkName}</div>
           <button className="btn-secondary" onClick={connectWallet} type="button">
             <Wallet size={16} />
-            {account ? shortAddr(account) : 'Kết nối ví'}
+            {account ? shortAddr(account) : 'Connect wallet'}
           </button>
         </div>
       </header>
 
       {!hasContractAddress && (
         <div className="missing-banner" role="status">
-          Chưa có địa chỉ contract. Trang vẫn mở và không gửi giao dịch. Sau khi deploy trên studionet hiện Result: SUCCESS, đặt <span className="mono">VITE_CONTRACT_ADDRESS</span> rồi build lại.
+          No contract address yet. The page still opens and will not send a transaction. After a studionet deploy shows Result: SUCCESS, set <span className="mono">VITE_CONTRACT_ADDRESS</span> and build again.
         </div>
       )}
 
@@ -451,29 +451,29 @@ export default function App() {
       )}
 
       <p className="pitch">
-        Người thuê khoá một khoản GEN cố định cho cả lô. Hướng dẫn, đáp án chuẩn và tiêu chí bị khoá ngay lúc tạo. AI chỉ trả về ACCEPTED hoặc REJECTED. Đạt thì trả hết cho người gán nhãn. Không đạt lần đầu, còn hạn, thì được nộp lại một lần — tiền không đổi.
+        The requester locks one fixed GEN fee for the whole batch. Guidelines, gold answers, and the acceptance criteria lock at creation. AI returns only ACCEPTED or REJECTED. Accepted pays the labeler in full. The first rejection, while the deadline is still open, allows one resubmission and does not move the fee.
       </p>
 
       {errorMessage && (
         <div className="error-banner" role="alert">
           <AlertTriangle size={16} />
           <span>{errorMessage}</span>
-          <button type="button" className="btn-ghost" onClick={() => setErrorMessage(null)}>Đóng</button>
+          <button type="button" className="btn-ghost" onClick={() => setErrorMessage(null)}>Close</button>
         </div>
       )}
       {txHash && (
         <a className="tx-link" href={txExplorerUrl(txHash)} target="_blank" rel="noreferrer">
-          Xem giao dịch trên explorer
+          View transaction on the explorer
         </a>
       )}
 
       <div className="layout">
         <form className="card" onSubmit={onCreate}>
-          <h2>Tạo lô việc</h2>
-          <p className="hint">Người thuê ký và gửi GEN vào escrow. Chỉ mô tả công việc là ô chữ tự do. Tiêu chí được sinh từ loại việc và ngưỡng khớp.</p>
+          <h2>Create a batch</h2>
+          <p className="hint">The requester signs and sends GEN into escrow. The job description is the only free-text field. The acceptance line is generated from the task type and the match threshold.</p>
           <div className="public-banner">{PUBLIC_LINK_BANNER}</div>
 
-          <label className="label">Địa chỉ người gán nhãn</label>
+          <label className="label">Labeler address</label>
           <div className="url-row">
             <input
               className="input mono"
@@ -486,14 +486,14 @@ export default function App() {
               className="btn-ghost"
               onClick={async () => {
                 try { setLabelerAddr(await pasteClipboard()); }
-                catch { setErrorMessage('Không đọc được clipboard.'); }
+                catch { setErrorMessage('Could not read the clipboard.'); }
               }}
             >
-              <ClipboardPaste size={14} /> Dán
+              <ClipboardPaste size={14} /> Paste
             </button>
           </div>
 
-          <label className="label">Loại tác vụ</label>
+          <label className="label">Task type</label>
           <div className="chips">
             {CATEGORIES.map((item) => (
               <button
@@ -508,7 +508,7 @@ export default function App() {
           </div>
           <p className="hint">{category.hint}</p>
 
-          <label className="label">Mô tả công việc</label>
+          <label className="label">Job description</label>
           <textarea
             className="textarea"
             rows={4}
@@ -518,30 +518,30 @@ export default function App() {
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          <label className="label">Link hướng dẫn</label>
+          <label className="label">Guideline link</label>
           <UrlFields urls={guidelineUrls} setUrls={setGuidelineUrls} placeholder="https://" onError={setErrorMessage} />
           <button type="button" className="btn-ghost" onClick={() => addUrl(guidelineUrls, setGuidelineUrls)}>
-            <Plus size={14} /> Thêm link
+            <Plus size={14} /> Add link
           </button>
 
-          <label className="label">Link đáp án chuẩn</label>
+          <label className="label">Gold-standard link</label>
           <UrlFields urls={goldUrls} setUrls={setGoldUrls} placeholder="https://" onError={setErrorMessage} />
           <button type="button" className="btn-ghost" onClick={() => addUrl(goldUrls, setGoldUrls)}>
-            <Plus size={14} /> Thêm link
+            <Plus size={14} /> Add link
           </button>
 
-          <label className="label">Ngưỡng chấp nhận</label>
+          <label className="label">Acceptance threshold</label>
           <select className="select" value={threshold} onChange={(e) => setThreshold(e.target.value)}>
             {THRESHOLDS.map((pct) => (
-              <option key={pct} value={pct}>{pct}% khớp đáp án chuẩn</option>
+              <option key={pct} value={pct}>{pct}% match with the gold standard</option>
             ))}
           </select>
           <div className="criteria-preview">
-            <span className="label">Tiêu chí sẽ bị khoá</span>
+            <span className="label">Criteria that will be locked</span>
             <p>{criteriaPreview}</p>
           </div>
 
-          <label className="label">Tiền công cho cả lô</label>
+          <label className="label">Fee for the whole batch</label>
           <div className="chips">
             {PAYMENT_PRESETS.map((preset) => (
               <button
@@ -560,9 +560,9 @@ export default function App() {
             value={paymentStr}
             onChange={(e) => setPaymentStr(sanitizeGenInput(e.target.value))}
           />
-          <p className="hint">Sẽ khoá {paymentLabel(paymentWei)} trong contract. Đây là số cố định cho cả lô.</p>
+          <p className="hint">This will lock {paymentLabel(paymentWei)} in the contract. The amount is fixed for the whole batch.</p>
 
-          <label className="label">Hạn nộp</label>
+          <label className="label">Submission deadline</label>
           <select className="select" value={deadlineId} onChange={(e) => setDeadlineId(e.target.value)}>
             {DEADLINE_PRESETS.map((preset) => (
               <option key={preset.id} value={preset.id}>{preset.label}</option>
@@ -578,34 +578,34 @@ export default function App() {
                 setGoldUrls([EXAMPLE_GOLD_URL]);
               }}
             >
-              Điền link mẫu công khai
+              Fill sample public links
             </button>
             <button className="btn-primary" type="submit" disabled={loading}>
-              Tạo lô và khoá tiền công
+              Create batch and lock the fee
             </button>
           </div>
         </form>
 
         <section className="card">
           <div className="split">
-            <h2>Các lô</h2>
+            <h2>Batches</h2>
             <button type="button" className="btn-ghost" onClick={() => fetchRows()} disabled={loading || !hasContractAddress}>
-              <RefreshCw size={14} /> Tải lại
+              <RefreshCw size={14} /> Refresh
             </button>
           </div>
           <div className="filter-row">
             {[
-              ['all', 'Tất cả'],
-              ['requester', 'Tôi là người thuê'],
-              ['labeler', 'Tôi là người gán nhãn'],
+              ['all', 'All'],
+              ['requester', 'I am the requester'],
+              ['labeler', 'I am the labeler'],
             ].map(([id, label]) => (
               <button key={id} type="button" className={`chip${filter === id ? ' active' : ''}`} onClick={() => setFilter(id)}>
                 {label}
               </button>
             ))}
           </div>
-          {!hasContractAddress && <p className="empty">Danh sách hiện sau khi cấu hình địa chỉ contract trên studionet.</p>}
-          {hasContractAddress && visible.length === 0 && <p className="empty">Chưa có lô nào trong bộ lọc này.</p>}
+          {!hasContractAddress && <p className="empty">The list appears after a studionet contract address is configured.</p>}
+          {hasContractAddress && visible.length === 0 && <p className="empty">No batches in this filter yet.</p>}
           <div className="list">
             {visible.map((row) => (
               <button
@@ -618,11 +618,11 @@ export default function App() {
                 }}
               >
                 <div className="split">
-                  <strong>Lô #{row.batch_id}</strong>
+                  <strong>Batch #{row.batch_id}</strong>
                   <span className={`badge badge-${statusTone(row.status)}`}>{statusLabel(row.status)}</span>
                 </div>
                 <p>{row.task_description}</p>
-                <p className="hint">{paymentLabel(row.payment_amount)} · hạn {formatDeadline(row.submission_deadline)}</p>
+                <p className="hint">{paymentLabel(row.payment_amount)} · deadline {formatDeadline(row.submission_deadline)}</p>
               </button>
             ))}
           </div>
@@ -633,44 +633,44 @@ export default function App() {
         <section className="card detail">
           <FlowStrip status={active.status} />
           <div className="split">
-            <h2>Lô #{active.batch_id}</h2>
+            <h2>Batch #{active.batch_id}</h2>
             <button
               type="button"
               className="btn-ghost"
               onClick={() => copyText(`${window.location.origin}${window.location.pathname}?id=${active.batch_id}`, 'share')}
             >
-              <Copy size={14} /> {copied === 'share' ? 'Đã chép' : 'Chia sẻ'}
+              <Copy size={14} /> {copied === 'share' ? 'Copied' : 'Share'}
             </button>
           </div>
           <p>{active.task_description}</p>
           <div className="meta">
-            <span>Người thuê {shortAddr(active.requester)}</span>
-            <span>Người gán nhãn {shortAddr(active.labeler)}</span>
+            <span>Requester {shortAddr(active.requester)}</span>
+            <span>Labeler {shortAddr(active.labeler)}</span>
             <span>{paymentLabel(active.payment_amount)}</span>
             <span><Clock size={12} /> {formatDeadline(active.submission_deadline)}</span>
-            <span>Lần nộp lại đã dùng: {String(active.revisions_used ?? 0)}/1</span>
+            <span>Revisions used: {String(active.revisions_used ?? 0)}/1</span>
           </div>
 
           <div className="locked">
             <div className="split">
-              <strong><Lock size={14} /> Baseline đã khoá</strong>
+              <strong><Lock size={14} /> Locked baseline</strong>
             </div>
             <p className="lock-line">{LOCKED_LINE}</p>
-            <p className="label">Tiêu chí chấp nhận</p>
+            <p className="label">Acceptance criteria</p>
             <p className="criteria-text">{active.acceptance_criteria}</p>
-            <p className="label">Hướng dẫn</p>
+            <p className="label">Guidelines</p>
             <ul className="link-list">
               {guidelines.map((url) => (
                 <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>
               ))}
             </ul>
-            <p className="label">Đáp án chuẩn</p>
+            <p className="label">Gold standard</p>
             <ul className="link-list">
               {gold.map((url) => (
                 <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>
               ))}
             </ul>
-            <p className="hint">Tiền công {paymentLabel(active.payment_amount)} · hạn nộp {formatDeadline(active.submission_deadline)}</p>
+            <p className="hint">Fee {paymentLabel(active.payment_amount)} · deadline {formatDeadline(active.submission_deadline)}</p>
           </div>
 
           {hint && (
@@ -684,7 +684,7 @@ export default function App() {
             <div className={`verdict ${String(active.verdict).toUpperCase() === 'ACCEPTED' ? 'verdict-accepted' : 'verdict-rejected'}`}>
               <div className="split">
                 <strong>{active.verdict}</strong>
-                <span>Độ tin cậy {String(active.confidence ?? 0)}/100</span>
+                <span>Confidence {String(active.confidence ?? 0)}/100</span>
               </div>
               <p className="reason">{active.verdict_reason}</p>
             </div>
@@ -695,7 +695,7 @@ export default function App() {
 
           {submitted.length > 0 && (
             <>
-              <p className="label">Bài đã nộp</p>
+              <p className="label">Submitted work</p>
               <ul className="link-list">
                 {submitted.map((url) => (
                   <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>
@@ -712,7 +712,7 @@ export default function App() {
               onClick={() => runWrite('resolve_batch', [String(active.batch_id)], 0n, { resolving: active.batch_id })}
             >
               <Scale size={16} />
-              {resolvingId === String(active.batch_id) ? 'Đang đọc các link và đối chiếu với đáp án chuẩn…' : 'Yêu cầu AI chấm'}
+              {resolvingId === String(active.batch_id) ? 'Reading the links and comparing them with the gold standard…' : 'Request an AI check'}
             </button>
           )}
 
@@ -723,7 +723,7 @@ export default function App() {
               disabled={loading}
               onClick={() => runWrite('retry_resolution', [String(active.batch_id)])}
             >
-              <RotateCcw size={16} /> Thử lại
+              <RotateCcw size={16} /> Try again
             </button>
           )}
 
@@ -734,25 +734,25 @@ export default function App() {
               disabled={loading}
               onClick={() => runWrite('claim_expired_refund', [String(active.batch_id)])}
             >
-              Lấy lại tiền công (đã hết hạn)
+              Claim the fee (deadline passed)
             </button>
           )}
 
           {canSubmit && deadlinePassed(active.submission_deadline) && (
-            <p className="revision-note">Đã quá hạn nộp. Người thuê có thể lấy lại tiền công.</p>
+            <p className="revision-note">The submission deadline has passed. The requester can claim the fee back.</p>
           )}
 
           {active.status === 'REVISION_REQUESTED' && isLabeler && !deadlinePassed(active.submission_deadline) && (
-            <p className="revision-note">Bạn còn 1 lần nộp lại. Tiền công vẫn nằm nguyên trong escrow.</p>
+            <p className="revision-note">You have 1 revision left. The fee is still untouched in escrow.</p>
           )}
 
           {canSubmit && !deadlinePassed(active.submission_deadline) && (
             <form onSubmit={onSubmit}>
               <div className="public-banner">{PUBLIC_LINK_BANNER}</div>
-              <label className="label">Link bài đã gán nhãn</label>
+              <label className="label">Labeled batch link</label>
               <UrlFields urls={submissionUrls} setUrls={setSubmissionUrls} placeholder="https://" onError={setErrorMessage} />
               <button type="button" className="btn-ghost" onClick={() => addUrl(submissionUrls, setSubmissionUrls)}>
-                <Plus size={14} /> Thêm link
+                <Plus size={14} /> Add link
               </button>
               <div className="row-actions">
                 <button
@@ -760,9 +760,9 @@ export default function App() {
                   className="btn-ghost"
                   onClick={() => setSubmissionUrls([EXAMPLE_SUBMISSION_URL])}
                 >
-                  Điền link mẫu công khai
+                  Fill sample public links
                 </button>
-                <button className="btn-primary" type="submit" disabled={loading}>Nộp bài</button>
+                <button className="btn-primary" type="submit" disabled={loading}>Submit batch</button>
               </div>
             </form>
           )}
@@ -770,12 +770,12 @@ export default function App() {
       )}
 
       <section className="card limits">
-        <h2>Giới hạn cần biết trước khi nhận việc</h2>
+        <h2>Limits to read before you accept the job</h2>
         <ol>
-          <li>Không có nguồn thứ ba độc lập để xác minh chất lượng gán nhãn. Baseline duy nhất là hướng dẫn và đáp án chuẩn do người thuê đặt, và hai thứ này bị khoá lúc tạo lô. AI chỉ xem bài nộp có khớp baseline đó hay không.</li>
-          <li>Người thuê vẫn có thể đặt đáp án chuẩn bất công. Người gán nhãn cần đọc kỹ phần đã khoá trước khi làm.</li>
-          <li>Khi kết quả là REJECTED, người thuê được hoàn tiền nhưng có thể đã thấy nội dung bài nộp. Đây là hạn chế thương mại, không phải một quyền trong contract.</li>
-          <li>Contract chỉ đọc được link công khai dạng văn bản. File riêng tư hoặc trang cần đăng nhập sẽ lỗi.</li>
+          <li>There is no independent third party that can verify labeling quality. The only baseline is the guidelines and gold answers the requester set, and those are locked when the batch is created. The AI only checks whether the submission matches that baseline.</li>
+          <li>A requester can still set an unfair gold standard. Read the locked materials carefully before you start.</li>
+          <li>On REJECTED, the requester is refunded but may already have seen the submission. That is a commercial limit, not a right granted by the contract.</li>
+          <li>The contract can only read public text links. Private files and pages that require a login will fail.</li>
         </ol>
       </section>
     </div>
