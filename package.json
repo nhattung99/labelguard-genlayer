@@ -1,0 +1,13 @@
+{
+  "name": "labelguard",
+  "private": true,
+  "scripts": {
+    "prebuild": "node scripts/check-no-float-money.js",
+    "build": "npm run build --prefix frontend",
+    "check:float": "node scripts/check-no-float-money.js",
+    "test:money": "node frontend/src/__tests__/unit_conversion.test.js",
+    "test:ui": "node frontend/src/__tests__/batch_poll.test.js",
+    "test:frontend": "npm test --prefix frontend",
+    "test:contract": "python -m pytest tests/test_label_guard.py -q"
+  }
+}
